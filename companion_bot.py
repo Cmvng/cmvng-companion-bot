@@ -105,11 +105,49 @@ def telegram_webhook():
     # Register user on any interaction
     register_user(user_id, username, first_name)
 
-    # ── /start ──
-    if text == "/start":
+    # ── /start (with optional deep link: /start pro, /start elite, etc.) ──
+    if text == "/start" or text.startswith("/start "):
+        parts = text.split(" ", 1)
+        deep_link = parts[1].lower().strip() if len(parts) > 1 else ""
+
+        # If deep link is a plan name, send payment link
+        plan_prices = {"pro": 15, "elite": 50, "institutional": 150}
+
+        if deep_link in plan_prices:
+            plan_name = deep_link.capitalize()
+            price = plan_prices[deep_link]
+            pay_url = "{}?tgid={}&tier={}&price={}".format(CHECKOUT_URL, user_id, deep_link, price)
+
+            register_user(user_id, username, first_name)
+
+            msg = (
+                "👋 <b>Welcome to Cmvng SignalVault!</b>\n\n"
+                "You selected the <b>{}</b> plan — {} USDC/month.\n\n"
+                "To activate, pay with USDC on Arc Testnet:\n\n"
+                "💳 <a href='{}'>👉 Open Payment Page</a>\n\n"
+                "<i>Need testnet USDC? Get it free at faucet.circle.com</i>\n\n"
+                "━━━━━━━━━━━━━━━━━━━\n"
+                "Want a different plan? /subscribe"
+            ).format(plan_name, price, pay_url)
+            send_message(chat_id, msg)
+            return "ok"
+
+        if deep_link == "free":
+            register_user(user_id, username, first_name)
+            msg = (
+                "👋 <b>Welcome to Cmvng SignalVault!</b>\n\n"
+                "You're on the <b>Free</b> plan.\n"
+                "You'll receive <b>2 signals per day</b> on random profitable pairs.\n\n"
+                "Signals will start arriving automatically.\n\n"
+                "⚡ /subscribe — Upgrade for unlimited signals\n"
+                "📊 /status — Check your plan"
+            )
+            send_message(chat_id, msg)
+            return "ok"
+
+        # Normal /start without deep link
         plan = check_user_plan(user_id)
         tier_name = plan.get("tier_name", "Free")
-        remaining = plan.get("remaining", 2)
 
         if plan.get("tier", 0) >= 1:
             welcome = (

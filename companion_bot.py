@@ -310,6 +310,39 @@ def broadcast():
     print("Broadcast: sent to {}, skipped {} (limit reached)".format(sent_count, skipped_count))
     return jsonify({"ok": True, "sent": sent_count, "skipped": skipped_count})
 
+# ─── Notify Endpoint (checkout page calls this after payment) ─
+
+@app.route("/notify", methods=["POST"])
+def notify_payment():
+    data = request.get_json()
+    if not data or "user_id" not in data:
+        return jsonify({"error": "No user_id"}), 400
+
+    user_id = data["user_id"]
+    tier_name = data.get("tier_name", "Pro")
+    amount = data.get("amount", 0)
+    tx_hash = data.get("tx_hash", "")
+
+    tx_short = tx_hash[:10] + "..." if len(tx_hash) > 10 else tx_hash
+    tx_link = "https://testnet.arcscan.app/tx/{}".format(tx_hash) if tx_hash else ""
+
+    msg = (
+        "✅ <b>Payment Confirmed!</b>\n\n"
+        "Your <b>{}</b> plan is now active.\n\n"
+        "• Amount: <b>{} USDC</b>\n"
+        "• Network: Arc Testnet\n"
+        "• Signals: <b>Unlimited</b>\n"
+        "• Expires: <b>30 days from now</b>\n"
+    ).format(tier_name, amount)
+
+    if tx_link:
+        msg += "\n🔗 <a href='{}'>View transaction on ArcScan</a>\n".format(tx_link)
+
+    msg += "\nYour signals are now flowing. Trade well. 📈"
+
+    send_message(int(user_id), msg)
+    return jsonify({"ok": True})
+
 # ─── Health Check ─────────────────────────────────────────────
 
 @app.route("/")
